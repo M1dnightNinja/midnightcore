@@ -1,7 +1,7 @@
 [versions]
 netty = "4.1.115.Final"
-mdcfg = "3.0.0"
-mdlib = "2.0.0"
+mdcfg = "3.1.0-SNAPSHOT"
+mdlib = "2.1.0-SNAPSHOT"
 smi = "0.2.0"
 slf4j = "2.0.11"
 jbr-anno = "24.1.0"

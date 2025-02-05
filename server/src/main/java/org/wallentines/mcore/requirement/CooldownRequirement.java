@@ -1,6 +1,5 @@
 package org.wallentines.mcore.requirement;
 
-import org.wallentines.mdcfg.TypeReference;
 import org.wallentines.mdcfg.serializer.Serializer;
 import org.wallentines.midnightlib.requirement.Check;
 import org.wallentines.midnightlib.requirement.CheckType;
@@ -51,30 +50,9 @@ public class CooldownRequirement<T> implements Check<T> {
         }
 
         @Override
-        public TypeReference<CooldownRequirement<T>> type() {
-            return new TypeReference<CooldownRequirement<T>>() {};
-        }
-
-        @Override
         public Serializer<CooldownRequirement<T>> serializer() {
             return serializer;
         }
     }
 
-//
-//    @Override
-//    public <O> SerializeResult<O> serialize(SerializeContext<O> ctx) {
-//        Map<String, O> out = new HashMap<>();
-//        out.put("value", ctx.toNumber(cooldown));
-//        return SerializeResult.success(ctx.toMap(out));
-//    }
-
-//    public static <T> CheckType<T> type() {
-//        return new CheckType<T>() {
-//            @Override
-//            public <O> SerializeResult<Check<T>> deserialize(SerializeContext<O> ctx, O o) {
-//                return Serializer.LONG.fieldOf("value").deserialize(ctx, o).flatMap(CooldownRequirement::new);
-//            }
-//        };
-//    }
 }

@@ -72,7 +72,7 @@ public class TestUtil {
                 pl.sendMessage(
                         Component.text("Submitted")
                                 .withHoverEvent(HoverEvent.create(Component.text("Hello").withColor(TextColor.GOLD)))
-                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tp @s ~ ~5 ~"))
+                                .withClickEvent(ClickEvent.create(ClickEvent.Action.RUN_COMMAND, "/tp @s ~ ~5 ~"))
                 );
             });
 

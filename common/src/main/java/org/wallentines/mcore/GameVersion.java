@@ -1,11 +1,11 @@
 package org.wallentines.mcore;
 
 import org.wallentines.mdcfg.ConfigObject;
-import org.wallentines.mdcfg.serializer.ConfigContext;
-import org.wallentines.mdcfg.serializer.DelegatedContext;
-import org.wallentines.mdcfg.serializer.SerializeContext;
+import org.wallentines.mdcfg.serializer.*;
 import org.wallentines.midnightlib.types.DefaultedSingleton;
 import org.wallentines.midnightlib.types.Singleton;
+
+import java.util.function.Function;
 
 /**
  * A data type which stores basic information about a Minecraft version, including version ID (i.e. 1.20.1) and
@@ -116,6 +116,26 @@ public class GameVersion {
         return CURRENT_VERSION.getOr(MAX);
     }
 
+    public static <T> Serializer<T> serializerFor(Function<GameVersion, Serializer<T>> map) {
+        return new Serializer<T>() {
+            @Override
+            public <O> SerializeResult<O> serialize(SerializeContext<O> context, T value) {
+                GameVersion ver = getVersion(context);
+                Serializer<T> ser = map.apply(ver);
+                if(ser == null) return SerializeResult.failure("No serializer for " + ver);
+                return ser.serialize(context, value);
+            }
+
+            @Override
+            public <O> SerializeResult<T> deserialize(SerializeContext<O> context, O value) {
+                GameVersion ver = getVersion(context);
+                Serializer<T> ser = map.apply(ver);
+                if(ser == null) return SerializeResult.failure("No serializer for " + ver);
+                return ser.deserialize(context, value);
+            }
+        };
+    }
+
 
     public static class Feature {
 
@@ -195,6 +215,11 @@ public class GameVersion {
          * In 24w44a, the shadow_color text component field was added
          */
         public static final Feature COMPONENT_SHADOW_COLOR = new Feature(769, GameVersion.RELEASE_MAX_VERSION, 220);
+
+        /**
+         * In 25w02a, hover events and click event contents were inlined
+         */
+        public static final Feature COMPONENT_SNBT = new Feature(770, GameVersion.RELEASE_MAX_VERSION, 229);
 
         public final int minVersion;
         public final int maxVersion;

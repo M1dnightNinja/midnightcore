@@ -57,7 +57,7 @@ public class MutableComponent {
     /**
      * The event which occurs when a player hovers over the component
      */
-    public HoverEvent<?> hoverEvent;
+    public HoverEvent hoverEvent;
 
     /**
      * The event which occurs when a player clicks on the component

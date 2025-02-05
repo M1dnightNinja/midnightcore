@@ -46,11 +46,6 @@ public class PlayerCheck<T> implements Check<Player> {
         }
 
         @Override
-        public TypeReference<PlayerCheck<T>> type() {
-            return new TypeReference<PlayerCheck<T>>() {};
-        }
-
-        @Override
         public Serializer<PlayerCheck<T>> serializer() {
             return serializer;
         }

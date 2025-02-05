@@ -36,7 +36,7 @@ public class ItemUtil {
     public static UUID joinUUID(int[] ints) {
 
         if(ints.length != 4) {
-            MidnightCoreAPI.LOGGER.warn("Attempt to form UUID from array of length " + ints.length + "! Expected length 4!");
+            MidnightCoreAPI.LOGGER.warn("Attempt to form UUID from array of length {}! Expected length 4!", ints.length);
             return null;
         }
 
@@ -115,10 +115,7 @@ public class ItemUtil {
      * @return A modified component
      */
     public static Component applyItemLoreBaseStyle(Component component) {
-        Component out = component;
-        if(out.italic == null) {
-            out = out.withItalic(false);
-        }
+        Component out = applyItemNameBaseStyle(component);
         if(out.color == null) {
             out = out.withColor(TextColor.WHITE);
         }
@@ -131,7 +128,7 @@ public class ItemUtil {
         String strName;
         if(version.hasFeature(feature)) {
             try(ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
-                JSONCodec.minified().encode(new GameVersion.VersionContext(ConfigContext.INSTANCE, version), ModernSerializer.INSTANCE, component, bos);
+                JSONCodec.minified().encode(new GameVersion.VersionContext<>(ConfigContext.INSTANCE, version), ModernSerializer.INSTANCE, component, bos);
                 strName = bos.toString();
             } catch (IOException ex) {
                 throw new RuntimeException(ex);

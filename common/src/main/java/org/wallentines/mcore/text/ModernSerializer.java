@@ -42,7 +42,7 @@ public class ModernSerializer implements Serializer<Component> {
         if(value.font != null) context.set("font", context.toString(value.font.toString()), out);
         if(value.insertion != null) context.set("insertion", context.toString(value.insertion), out);
 
-        if (version.hasFeature(GameVersion.Feature.COMPONENT_SHADOW_COLOR) && value.shadowColor != null) {
+        if (value.shadowColor != null && version.hasFeature(GameVersion.Feature.COMPONENT_SHADOW_COLOR)) {
             context.set("shadow_color", context.toNumber(value.shadowColor.toDecimal()), out);
         }
 
@@ -51,7 +51,7 @@ public class ModernSerializer implements Serializer<Component> {
             if(!hoverEvent.isComplete()) {
                 return SerializeResult.failure("Unable to serialize hover event for component!" + hoverEvent.getError());
             }
-            context.set("hoverEvent", hoverEvent.getOrThrow(), out);
+            context.set(HoverEvent.getKey(version), hoverEvent.getOrThrow(), out);
         }
 
         if(value.clickEvent != null) {
@@ -59,7 +59,7 @@ public class ModernSerializer implements Serializer<Component> {
             if(!clickEvent.isComplete()) {
                 return SerializeResult.failure("Unable to serialize click event for component!" + clickEvent.getError());
             }
-            context.set("clickEvent", clickEvent.getOrThrow(), out);
+            context.set(ClickEvent.getKey(version), clickEvent.getOrThrow(), out);
         }
 
 
@@ -158,6 +158,8 @@ public class ModernSerializer implements Serializer<Component> {
             }
         }
 
+        GameVersion ver = GameVersion.getVersion(context);
+
         out.bold = Serializer.BOOLEAN.deserialize(context, context.get("bold", value)).get().orElse(null);
         out.italic = Serializer.BOOLEAN.deserialize(context, context.get("italic", value)).get().orElse(null);
         out.underlined = Serializer.BOOLEAN.deserialize(context, context.get("underlined", value)).get().orElse(null);
@@ -165,8 +167,8 @@ public class ModernSerializer implements Serializer<Component> {
         out.obfuscated = Serializer.BOOLEAN.deserialize(context, context.get("obfuscated", value)).get().orElse(null);
         out.font = Identifier.serializer("minecraft").deserialize(context, context.get("font", value)).get().orElse(null);
         out.insertion = Serializer.STRING.deserialize(context, context.get("insertion", value)).get().orElse(null);
-        out.hoverEvent = HoverEvent.SERIALIZER.deserialize(context, context.get("hoverEvent", value)).get().orElse(null);
-        out.clickEvent = ClickEvent.SERIALIZER.deserialize(context, context.get("clickEvent", value)).get().orElse(null);
+        out.hoverEvent = HoverEvent.SERIALIZER.deserialize(context, context.get(HoverEvent.getKey(ver), value)).get().orElse(null);
+        out.clickEvent = ClickEvent.SERIALIZER.deserialize(context, context.get(ClickEvent.getKey(ver), value)).get().orElse(null);
         out.shadowColor = Serializer.INT.deserialize(context, context.get("shadow_color", value)).get().map(rgb -> {
             int alpha = (rgb >> 24) & 0xFF;
             int red   = (rgb >> 16) & 0xFF;
@@ -190,98 +192,4 @@ public class ModernSerializer implements Serializer<Component> {
 
         return SerializeResult.success(out.toComponent());
     }
-//
-//    public static final Serializer<Content.Text> TEXT = new Serializer<>(Content.Text.class,
-//            ObjectSerializer.create(
-//                    Serializer.STRING.<Content.Text>entry("text", (text) -> text.text),
-//                    Content.Text::new
-//            )
-//    );
-//
-//    public static final ContentSerializer<Content.Translate> TRANSLATE = new ContentSerializer<>(Content.Translate.class,
-//            ContextObjectSerializer.create(
-//                    Serializer.STRING.entry("translate", (translate, c) -> translate.key),
-//                    Serializer.STRING.<Content.Translate, ContentSerializer.Context>entry("fallback", (translate, context) -> translate.fallback).optional(),
-//                    ContentSerializer.COMPONENT.listOf().<Content.Translate>entry("with", (translate, context) -> translate.with).optional(),
-//                    (c, key, fallback, with) -> new Content.Translate(key, fallback, with)
-//            )
-//    );
-//
-//    public static final ContentSerializer<Content.Keybind> KEYBIND = new ContentSerializer<>(Content.Keybind.class,
-//            ContextSerializer.fromStatic(ObjectSerializer.create(
-//                    Serializer.STRING.entry("keybind", con -> con.key),
-//                    Content.Keybind::new
-//            ))
-//    );
-//
-//    public static final ContentSerializer<Content.Score> SCORE = new ContentSerializer<>(Content.Score.class,
-//            ContextSerializer.fromStatic(ObjectSerializer.create(
-//                    ConfigSection.SERIALIZER.entry("score", con -> new ConfigSection()
-//                            .with("name", con.name)
-//                            .with("objective", con.objective)
-//                            .with("value", con.value)),
-//                    (cfg) -> new Content.Score(
-//                            cfg.getString("name"),
-//                            cfg.getOrDefault("objective", (String) null),
-//                            cfg.getOrDefault("value", (String) null)
-//                    )
-//            ))
-//    );
-//
-//    public static final ContentSerializer<Content.Selector> SELECTOR = new ContentSerializer<>(Content.Selector.class,
-//            ContextSerializer.fromStatic(ObjectSerializer.create(
-//                    Serializer.STRING.entry("selector", con -> con.value),
-//                    Content.Selector::new
-//            ))
-//    );
-//
-//    public static final ContentSerializer<Content.NBT> NBT = new ContentSerializer<>(Content.NBT.class,
-//            ContextObjectSerializer.create(
-//                    Serializer.STRING.entry("nbt", (nbt, ctx) -> nbt.path),
-//                    Serializer.BOOLEAN.<Content.NBT, ContentSerializer.Context>entry("interpret", (nbt, ctx) -> nbt.interpret).optional(),
-//                    ContentSerializer.COMPONENT.<Content.NBT>entry("separator", (nbt, ctx) -> nbt.separator).optional(),
-//                    Serializer.STRING.<Content.NBT, ContentSerializer.Context>entry("block", (nbt, ctx) -> nbt.type == Content.NBT.DataSourceType.BLOCK ? nbt.data : null).optional(),
-//                    Serializer.STRING.<Content.NBT, ContentSerializer.Context>entry("entity", (nbt, ctx) -> nbt.type == Content.NBT.DataSourceType.ENTITY ? nbt.data : null).optional(),
-//                    Serializer.STRING.<Content.NBT, ContentSerializer.Context>entry("storage",(nbt, ctx) -> nbt.type == Content.NBT.DataSourceType.STORAGE ? nbt.data : null).optional(),
-//                    (ctx, path, interpret, sep, block, entity, storage) -> {
-//
-//                        String data;
-//                        Content.NBT.DataSourceType type;
-//                        if(block != null) {
-//                            data = block;
-//                            type = Content.NBT.DataSourceType.BLOCK;
-//                        }
-//                        else if(entity != null) {
-//                            data = entity;
-//                            type = Content.NBT.DataSourceType.ENTITY;
-//                        }
-//                        else if(storage != null) {
-//                            data = storage;
-//                            type = Content.NBT.DataSourceType.STORAGE;
-//                        } else {
-//                            throw new IllegalArgumentException("Not enough data to deserialize NBT component!");
-//                        }
-//
-//                        return new Content.NBT(path, interpret, sep, type, data);
-//                    }
-//            ));
-
-//    private static ContentSerializer<?> getSerializer(Content.Type type) {
-//        switch (type) {
-//            case TEXT:
-//                return TEXT;
-//            case TRANSLATE:
-//                return TRANSLATE;
-//            case KEYBIND:
-//                return KEYBIND;
-//            case SCORE:
-//                return SCORE;
-//            case SELECTOR:
-//                return SELECTOR;
-//            case NBT:
-//                return NBT;
-//            default:
-//                return null;
-//        }
-//    }
 }

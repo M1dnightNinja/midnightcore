@@ -1,123 +1,136 @@
 package org.wallentines.mcore.text;
 
-import org.wallentines.mdcfg.serializer.InlineSerializer;
-import org.wallentines.mdcfg.serializer.ObjectSerializer;
+import org.wallentines.mcore.GameVersion;
+import org.wallentines.mdcfg.serializer.SerializeResult;
 import org.wallentines.mdcfg.serializer.Serializer;
+import org.wallentines.midnightlib.registry.Registry;
+
+import java.net.URI;
+import java.util.Objects;
 
 
 /**
  * A data type representing a chat component click event
  */
-public class ClickEvent {
+public interface ClickEvent {
 
-    private final Action action;
-    private final String value;
-
-    /**
-     * Constructs a Click Event with the given {@link Action Action} type and value
-     * @param action The type of click event
-     * @param value The value given to the action
-     */
-    public ClickEvent(Action action, String value) {
-        this.action = action;
-        this.value = value;
+    static String getKey(GameVersion version) {
+        return version.hasFeature(GameVersion.Feature.COMPONENT_SNBT) ? "click_event" : "clickEvent";
     }
 
-    /**
-     * Returns the Action type for this ClickEvent
-     * @return The Action type
-     */
-    public Action getAction() {
-        return action;
+    Action<?> action();
+
+    static <T> Simple<T> create(Simple.Action<T> act, T value) {
+        return new Simple<>(act, value);
     }
 
-    /**
-     * Returns the Action value for this ClickEvent
-     * @return The Action value
-     */
-    public String getValue() {
-        return value;
-    }
+    class Simple<T> implements ClickEvent {
 
-    /**
-     * A Serializer for creating ClickEvents from Mojang's chat component format
-     */
-    public static final Serializer<ClickEvent> SERIALIZER = ObjectSerializer.create(
-            Action.SERIALIZER.entry("action", ClickEvent::getAction),
-            Serializer.STRING.entry("value", ClickEvent::getValue),
-            ClickEvent::new
-    );
+        private final Action<T> action;
+        private final T value;
 
-
-    /**
-     * The type of action which will be performed when a ClickEvent is fired
-     */
-    public enum Action {
-
-        /**
-         * Opens a URL in the client's web browser when clicked
-         */
-        OPEN_URL("open_url"),
-
-        /**
-         * Opens a file on the client's computer when clicked.
-         * Note: Clients will not accept this Action type from Servers.
-         */
-        OPEN_FILE("open_file"),
-
-        /**
-         * Runs a command on the client when clicked
-         */
-        RUN_COMMAND("run_command"),
-
-        /**
-         * Suggests a command for the client to run when clicked
-         */
-        SUGGEST_COMMAND("suggest_command"),
-
-        /**
-         * Sets the page in an open book when clicked. Only applies to text in books
-         */
-        CHANGE_PAGE("change_page"),
-
-        /**
-         * Copies text to the client's clipboard
-         */
-        COPY_TO_CLIPBOARD("copy_to_clipboard");
-
-        /**
-         * The id of the action type, for serialization
-         */
-        public final String id;
-
-        Action(String id) {
-            this.id = id;
+        public Simple(Action<T> action, T value) {
+            this.action = action;
+            this.value = value;
         }
 
-        /**
-         * Returns the ID of the action type
-         * @return The ID of the action type
-         */
-        public String getId() {
-            return id;
+        public Action<T> action() {
+            return action;
         }
 
-        /**
-         * Finds the action type which has the given ID
-         * @param id The ID to look up
-         * @return The action type with the given ID, or null
-         */
-        public static Action byId(String id) {
-            for(Action act : values()) {
-                if(act.id.equals(id)) return act;
+        public T value() {
+            return value;
+        }
+
+        public static class Action<T> implements ClickEvent.Action<Simple<T>> {
+            private final Serializer<Simple<T>> serializer;
+
+            Action(Serializer<T> serializer) {
+                this.serializer = serializer.flatMap(Simple::value, value -> new Simple<>(this, value));
             }
-            return null;
+
+            @Override
+            public Serializer<Simple<T>> serializer() {
+                return serializer;
+            }
         }
 
-        /**
-         * A Serializer for converting an Action type to its ID, or looking one up by ID
-         */
-        public static final Serializer<Action> SERIALIZER = InlineSerializer.of(Action::getId, Action::byId);
+        @Override
+        public boolean equals(Object o) {
+            if (o == null || getClass() != o.getClass()) return false;
+            Simple<?> simple = (Simple<?>) o;
+            return Objects.equals(action, simple.action) && Objects.equals(value, simple.value);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(action, value);
+        }
+
+        @Override
+        public String toString() {
+            return "Simple{" +
+                    "action=" + action +
+                    ", value=" + value +
+                    '}';
+        }
     }
+
+    interface Action<T extends ClickEvent> {
+        Serializer<T> serializer();
+        Registry<String, ClickEvent.Action<?>> REGISTRY = Registry.createStringRegistry();
+
+        static <T extends ClickEvent, A extends ClickEvent.Action<T>> A register(String name, A action) {
+            REGISTRY.register(name, action);
+            return action;
+        }
+
+        ClickEvent.Simple.Action<URI> OPEN_URL = register("open_url", new Simple.Action<>(GameVersion.serializerFor(gv ->
+                Serializer.STRING.fieldOf(gv.hasFeature(GameVersion.Feature.COMPONENT_SNBT) ? "url" : "value")
+                        .map(uri -> SerializeResult.success(uri.toString()), str -> {
+                            try {
+                                URI uri = URI.create(str);
+                                if(uri.getScheme().equalsIgnoreCase("http") || uri.getScheme().equalsIgnoreCase("https")) {
+                                    return SerializeResult.success(uri);
+                                }
+                                return SerializeResult.failure("Invalid URI scheme: " + uri.getScheme() + ", for " + str);
+                            } catch (Exception e) {
+                                return SerializeResult.failure("Unable to parse URI: " + str, e);
+                            }
+                        })
+        )));
+
+        ClickEvent.Simple.Action<String> OPEN_FILE = register("open_file", new Simple.Action<>(GameVersion.serializerFor(gv ->
+                Serializer.STRING.fieldOf(gv.hasFeature(GameVersion.Feature.COMPONENT_SNBT) ? "path" : "value")
+        )));
+
+        ClickEvent.Simple.Action<String> RUN_COMMAND = register("run_command", new Simple.Action<>(GameVersion.serializerFor(gv ->
+                Serializer.STRING.fieldOf(gv.hasFeature(GameVersion.Feature.COMPONENT_SNBT) ? "command" : "value")
+        )));
+
+        ClickEvent.Simple.Action<String> SUGGEST_COMMAND = register("suggest_command", new Simple.Action<>(GameVersion.serializerFor(gv ->
+                Serializer.STRING.fieldOf(gv.hasFeature(GameVersion.Feature.COMPONENT_SNBT) ? "command" : "value")
+        )));
+
+        ClickEvent.Simple.Action<Integer> CHANGE_PAGE = register("change_page", new Simple.Action<>(GameVersion.serializerFor(gv ->
+                gv.hasFeature(GameVersion.Feature.COMPONENT_SNBT) ? Serializer.INT.fieldOf("page") : Serializer.STRING.fieldOf("value")
+                        .map(
+                                i -> SerializeResult.success(Objects.toString(i)),
+                                str -> {
+                                    try {
+                                        return SerializeResult.success(Integer.parseInt(str));
+                                    } catch (Exception ex) {
+                                        return SerializeResult.failure("Unable to parse page number: " + str, ex);
+                                    }
+                                }
+                        )
+
+        )));
+
+        ClickEvent.Simple.Action<String> COPY_TO_CLIPBOARD = register("copy_to_clipboard", new Simple.Action<>(Serializer.STRING.fieldOf("value")));
+
+    }
+
+    Serializer<ClickEvent> SERIALIZER = ClickEvent.Action.REGISTRY.byIdSerializer().fieldOf("action").dispatch(ClickEvent.Action::serializer, ClickEvent::action);
 
 }

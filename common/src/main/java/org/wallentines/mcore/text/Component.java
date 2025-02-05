@@ -67,7 +67,7 @@ public class Component {
     /**
      * The event which occurs when a player hovers over the component
      */
-    public final HoverEvent<?> hoverEvent;
+    public final HoverEvent hoverEvent;
 
     /**
      * The event which occurs when a player clicks on the component
@@ -91,7 +91,7 @@ public class Component {
 
 
     Component(Color color, Boolean bold, Boolean italic, Boolean underlined, Boolean strikethrough,
-              Boolean obfuscated, Boolean reset, Identifier font, String insertion, HoverEvent<?> hoverEvent,
+              Boolean obfuscated, Boolean reset, Identifier font, String insertion, HoverEvent hoverEvent,
               ClickEvent clickEvent, Color.RGBA shadowColor, Content content, Collection<Component> children) {
         this.color = color;
         this.bold = bold;
@@ -341,7 +341,7 @@ public class Component {
      * @param hoverEvent The hoverEvent to set
      * @return A new component with the given hoverEvent
      */
-    public Component withHoverEvent(HoverEvent<?> hoverEvent) {
+    public Component withHoverEvent(HoverEvent hoverEvent) {
         return new Component(color, bold, italic, underlined, strikethrough, obfuscated, reset, font, insertion,
                 hoverEvent, clickEvent, shadowColor, content, children);
     }

@@ -23,7 +23,11 @@ public class ItemComponentUtil {
     }
 
     public static <T> T decode(DataComponentType<T> type, ConfigObject value) {
-        return type.codecOrThrow().decode(getConfigOps(), value).getOrThrow().getFirst();
+        try {
+            return type.codecOrThrow().decode(getConfigOps(), value).getOrThrow().getFirst();
+        } catch (Exception ex) {
+            throw new RuntimeException("Unable to decode component with type " + type, ex);
+        }
     }
 
     public static <T> TypedDataComponent<T> decodeTyped(DataComponentType<T> type, ConfigObject value) {

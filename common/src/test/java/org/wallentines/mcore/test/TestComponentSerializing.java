@@ -64,7 +64,7 @@ public class TestComponentSerializing {
         Serializer<Component> ser = ModernSerializer.INSTANCE;
         testModern(ser);
 
-        Common.VERSION.setProtocolVersion(769);
+        Common.VERSION.setProtocolVersion(770);
 
         // Complex
         Component cmp = Component.text("Hello")
@@ -151,7 +151,7 @@ public class TestComponentSerializing {
     @Test
     public void testHoverEvent() {
 
-        String encoded = "{\"text\":\"Hello\",\"hoverEvent\":{\"action\":\"show_text\",\"contents\":{\"text\":\"Test\"}}}";
+        String encoded = "{\"text\":\"Hello\",\"hover_event\":{\"action\":\"show_text\",\"value\":{\"text\":\"Test\"}}}";
         Component cmp = ModernSerializer.INSTANCE.deserialize(ConfigContext.INSTANCE, JSONCodec.loadConfig(encoded)).getOrThrow();
 
         Assertions.assertInstanceOf(Content.Text.class, cmp.content);

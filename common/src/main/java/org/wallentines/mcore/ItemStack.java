@@ -181,7 +181,7 @@ public interface ItemStack {
     default ItemStack copy() {
         return Builder.of(getVersion(), getType())
                 .withCount(getCount())
-                .withComponents(ComponentPatchSet.fromItem(this))
+                .withComponents(getComponentPatch())
                 .withDataValue(getLegacyDataValue())
                 .build();
     }
@@ -195,7 +195,9 @@ public interface ItemStack {
         GameVersion version = getVersion();
         if(version.hasFeature(GameVersion.Feature.ITEM_COMPONENTS)) {
 
-            if(version.hasFeature(GameVersion.Feature.ITEM_NAME_OVERRIDE)) {
+            if(version.hasFeature(GameVersion.Feature.COMPONENT_SNBT)) {
+                loadComponent(ITEM_NAME_COMPONENT, ModernSerializer.INSTANCE.serialize(ConfigContext.INSTANCE, component).getOrThrow());
+            } else if(version.hasFeature(GameVersion.Feature.ITEM_NAME_OVERRIDE)) {
                 loadComponent(ITEM_NAME_COMPONENT, new ConfigPrimitive(component.toJSONString(version)));
             } else {
                 loadComponent(CUSTOM_NAME_COMPONENT, new ConfigPrimitive(ItemUtil.applyItemNameBaseStyle(component).toJSONString(version)));
@@ -223,8 +225,10 @@ public interface ItemStack {
         Component name;
         boolean italicize = true;
 
+        GameVersion version = getVersion();
+
         // 1.20.5+: Get item name from components
-        if(getVersion().hasFeature(GameVersion.Feature.ITEM_COMPONENTS)) {
+        if(version.hasFeature(GameVersion.Feature.ITEM_COMPONENTS)) {
 
             // Try custom_name first, then item_name
             ConfigObject encoded = saveComponent(CUSTOM_NAME_COMPONENT);
@@ -235,9 +239,14 @@ public interface ItemStack {
 
             if(encoded == null) return getTypeName().withColor(getRarityColor());
 
-            name = ModernSerializer.INSTANCE.deserialize(ConfigContext.INSTANCE, JSONCodec.minified().decode(GameVersion.context(getVersion()), encoded.asString())).getOrThrow();
+            if(version.hasFeature(GameVersion.Feature.COMPONENT_SNBT)) {
+                name = ModernSerializer.INSTANCE.deserialize(ConfigContext.INSTANCE, encoded).getOrThrow();
+            } else {
+                name = ModernSerializer.INSTANCE.deserialize(ConfigContext.INSTANCE, JSONCodec.minified().decode(GameVersion.context(version), encoded.asString())).getOrThrow();
+            }
 
-        // pre-1.20.5: Get item name from tag
+
+            // pre-1.20.5: Get item name from tag
         } else {
 
             ConfigSection tag = getCustomData();
@@ -297,13 +306,19 @@ public interface ItemStack {
         }
 
         List<Component> out = new ArrayList<>();
-        for(ConfigObject o : lore.values()) {
+        if(ver.hasFeature(GameVersion.Feature.COMPONENT_SNBT)) {
+            for(ConfigObject o : lore.values()) {
+                out.add(ModernSerializer.INSTANCE.deserialize(GameVersion.context(getVersion()), o).getOrThrow());
+            }
+        } else {
+            for(ConfigObject o : lore.values()) {
 
-            String s = o.asString();
-            if(ver.hasFeature(GameVersion.Feature.COMPONENT_ITEM_LORE)) {
-                out.add(ModernSerializer.INSTANCE.deserialize(GameVersion.context(getVersion()), new ConfigPrimitive(s)).getOrThrow());
-            } else {
-                out.add(LegacySerializer.INSTANCE.deserialize(ConfigContext.INSTANCE, new ConfigPrimitive(s)).getOrThrow());
+                String s = o.asString();
+                if(ver.hasFeature(GameVersion.Feature.COMPONENT_ITEM_LORE)) {
+                    out.add(ModernSerializer.INSTANCE.deserialize(GameVersion.context(getVersion()), new ConfigPrimitive(s)).getOrThrow());
+                } else {
+                    out.add(LegacySerializer.INSTANCE.deserialize(ConfigContext.INSTANCE, new ConfigPrimitive(s)).getOrThrow());
+                }
             }
         }
         return out;
@@ -316,8 +331,15 @@ public interface ItemStack {
     default void setLore(List<Component> components) {
         ConfigList out = new ConfigList();
         GameVersion ver = getVersion();
-        for(Component line : components) {
-            out.add(ItemUtil.serializeName(line, ver, GameVersion.Feature.COMPONENT_ITEM_LORE));
+
+        if(ver.hasFeature(GameVersion.Feature.ITEM_COMPONENTS)) {
+            for (Component cmp : components) {
+                out.add(ModernSerializer.INSTANCE.serialize(ConfigContext.INSTANCE, cmp).getOrThrow());
+            }
+        } else {
+            for (Component line : components) {
+                out.add(ItemUtil.serializeName(line, ver, GameVersion.Feature.COMPONENT_ITEM_LORE));
+            }
         }
 
         if(ver.hasFeature(GameVersion.Feature.ITEM_COMPONENTS)) {
@@ -463,7 +485,10 @@ public interface ItemStack {
 
         public static ComponentPatchSet fromItem(ItemStack is) {
             ComponentPatchSet out = new ComponentPatchSet();
-            is.getComponentIds().forEach(id -> out.set(id, is.saveComponent(id)));
+            is.getComponentIds().forEach(id -> {
+                ConfigObject obj = is.saveComponent(id);
+                if(obj != null) out.set(id, is.saveComponent(id));
+            });
             return out;
         }
 
@@ -624,8 +649,9 @@ public interface ItemStack {
         public Builder withName(Component name) {
 
             if (version.hasFeature(GameVersion.Feature.ITEM_COMPONENTS)) {
-
-                if(version.hasFeature(GameVersion.Feature.ITEM_NAME_OVERRIDE)) {
+                if(version.hasFeature(GameVersion.Feature.COMPONENT_SNBT)) {
+                    return withComponent(ITEM_NAME_COMPONENT, ModernSerializer.INSTANCE.serialize(ConfigContext.INSTANCE, name).getOrThrow());
+                } else if(version.hasFeature(GameVersion.Feature.ITEM_NAME_OVERRIDE)) {
                     return withComponent(ITEM_NAME_COMPONENT, new ConfigPrimitive(name.toJSONString(version)));
                 } else {
                     return withComponent(CUSTOM_NAME_COMPONENT, new ConfigPrimitive(ItemUtil.applyItemNameBaseStyle(name).toJSONString(version)));
@@ -645,11 +671,17 @@ public interface ItemStack {
         public Builder withLore(Collection<Component> lore) {
 
             ConfigList list = new ConfigList();
-            for(Component cmp : lore) {
-                cmp = ItemUtil.applyItemLoreBaseStyle(cmp);
-                String str = ItemUtil.serializeName(cmp, version, GameVersion.Feature.COMPONENT_ITEM_LORE);
+            if(version.hasFeature(GameVersion.Feature.COMPONENT_SNBT)) {
+                for (Component cmp : lore) {
+                    list.add(ModernSerializer.INSTANCE.serialize(ConfigContext.INSTANCE, cmp).getOrThrow());
+                }
+            } else {
+                for (Component cmp : lore) {
+                    cmp = ItemUtil.applyItemLoreBaseStyle(cmp);
+                    String str = ItemUtil.serializeName(cmp, version, GameVersion.Feature.COMPONENT_ITEM_LORE);
 
-                list.add(str);
+                    list.add(str);
+                }
             }
 
             if(version.hasFeature(GameVersion.Feature.ITEM_COMPONENTS)) {
@@ -999,10 +1031,10 @@ public interface ItemStack {
                         .optional())
                 .withEntry(ComponentPatchSet.SERIALIZER.<Builder>entry(
                                 "components",
-                            (b, ctx) -> {
-                                GameVersion ver = GameVersion.getVersion(ctx);
-                                return ver.hasFeature(GameVersion.Feature.ITEM_COMPONENTS) ? b.components : null;
-                            })
+                                (b, ctx) -> {
+                                    GameVersion ver = GameVersion.getVersion(ctx);
+                                    return ver.hasFeature(GameVersion.Feature.ITEM_COMPONENTS) ? b.components : null;
+                                })
                         .optional())
                 .build((es, ctx) -> {
                     GameVersion ver = GameVersion.getVersion(ctx);

@@ -1,8 +1,6 @@
 package org.wallentines.mcore.util;
 
-import com.google.gson.JsonObject;
 import com.mojang.datafixers.util.Either;
-import com.mojang.serialization.JsonOps;
 import net.minecraft.commands.arguments.selector.SelectorPattern;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.ComponentContents;
@@ -19,10 +17,10 @@ import org.wallentines.mcore.ConfiguringPlayer;
 import org.wallentines.mcore.Player;
 import org.wallentines.mcore.Server;
 import org.wallentines.mcore.text.*;
-import org.wallentines.mdcfg.serializer.GsonContext;
 import org.wallentines.midnightlib.math.Color;
 import org.wallentines.midnightlib.registry.Identifier;
 
+import java.net.URI;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -53,21 +51,22 @@ public class ConversionUtil {
      * @param event The HoverEvent to convert
      * @return A new Minecraft HoverEvent
      */
-    public static net.minecraft.network.chat.HoverEvent toMCHoverEvent(HoverEvent<?> event) {
+    @SuppressWarnings("unchecked")
+    public static net.minecraft.network.chat.HoverEvent toMCHoverEvent(HoverEvent event) {
 
-        if(event.getType() == HoverEvent.Type.SHOW_TEXT) {
-            net.minecraft.network.chat.Component out = new WrappedComponent((Component) event.getValue());
+        if(event.action() == HoverEvent.Action.SHOW_TEXT) {
+            net.minecraft.network.chat.Component out = new WrappedComponent(((HoverEvent.Simple<Component>) event).value());
             return new net.minecraft.network.chat.HoverEvent(net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT, out);
         }
 
-        if(event.getType() == HoverEvent.Type.SHOW_ITEM) {
+        if(event.action() == HoverEvent.Action.SHOW_ITEM) {
 
-            ItemStack is = ConversionUtil.validate((org.wallentines.mcore.ItemStack) event.getValue());
+            ItemStack is = ConversionUtil.validate(((HoverEvent.Simple<org.wallentines.mcore.ItemStack>) event).value());
             return new net.minecraft.network.chat.HoverEvent(net.minecraft.network.chat.HoverEvent.Action.SHOW_ITEM, new net.minecraft.network.chat.HoverEvent.ItemStackInfo(is));
         }
 
-        if(event.getType() == HoverEvent.Type.SHOW_ENTITY) {
-            HoverEvent.EntityInfo info = (HoverEvent.EntityInfo) event.getValue();
+        if(event.action() == HoverEvent.Action.SHOW_ENTITY) {
+            HoverEvent.EntityInfo info = ((HoverEvent.Simple<HoverEvent.EntityInfo>) event).value();
             net.minecraft.network.chat.HoverEvent.EntityTooltipInfo out = new net.minecraft.network.chat.HoverEvent.EntityTooltipInfo(
                     BuiltInRegistries.ENTITY_TYPE.get(toResourceLocation(info.type)).get().value(),
                     info.uuid,
@@ -76,12 +75,7 @@ public class ConversionUtil {
             return new net.minecraft.network.chat.HoverEvent(net.minecraft.network.chat.HoverEvent.Action.SHOW_ENTITY, out);
         }
 
-        if(event.getType() == HoverEvent.Type.SHOW_ACHIEVEMENT) {
-
-            throw new IllegalArgumentException("show_achievement hover events are not supported in this version!");
-        }
-
-        throw new IllegalArgumentException("Don't know how to convert HoverEvent of type " + event.getTypeId() + " to a Minecraft Hover event!");
+        throw new IllegalArgumentException("Don't know how to convert HoverEvent of type " + event.action() + " to a Minecraft Hover event!");
     }
 
     /**
@@ -89,7 +83,7 @@ public class ConversionUtil {
      * @param event The HoverEvent to convert
      * @return A new MidnightCore HoverEvent
      */
-    public static HoverEvent<?> toHoverEvent(net.minecraft.network.chat.HoverEvent event) {
+    public static HoverEvent toHoverEvent(net.minecraft.network.chat.HoverEvent event) {
 
         net.minecraft.network.chat.HoverEvent.Action<?> act = event.getAction();
         if(act == net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT) {
@@ -99,7 +93,7 @@ public class ConversionUtil {
 
         if(act == net.minecraft.network.chat.HoverEvent.Action.SHOW_ITEM) {
             net.minecraft.network.chat.HoverEvent.ItemStackInfo is = (net.minecraft.network.chat.HoverEvent.ItemStackInfo) event.getValue(act);
-            return HoverEvent.forItem((org.wallentines.mcore.ItemStack) (Object) is.getItemStack());
+            return HoverEvent.forItem(is.getItemStack());
         }
 
         if(act == net.minecraft.network.chat.HoverEvent.Action.SHOW_ENTITY) {
@@ -120,15 +114,29 @@ public class ConversionUtil {
      * @param event The ClickEvent to convert
      * @return A new Minecraft ClickEvent
      */
+    @SuppressWarnings("unchecked")
     public static net.minecraft.network.chat.ClickEvent toMCClickEvent(ClickEvent event) {
 
-        JsonObject obj = ClickEvent.SERIALIZER.serialize(GsonContext.INSTANCE, event).getOrThrow().getAsJsonObject();
-
-        try {
-            return net.minecraft.network.chat.ClickEvent.CODEC.decode(JsonOps.INSTANCE, obj).getOrThrow().getFirst();
-        } catch (Exception ex) {
-            throw new IllegalArgumentException("Don't know how to convert ClickEvent of type " + event.getAction().id + " to a Minecraft Click event!", ex);
+        if(event.action() == ClickEvent.Action.OPEN_URL) {
+            return new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.OPEN_URL, ((ClickEvent.Simple<URI>) event).value().toString());
         }
+        if(event.action() == ClickEvent.Action.OPEN_FILE) {
+            return new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.OPEN_FILE, ((ClickEvent.Simple<String>) event).value());
+        }
+        if(event.action() == ClickEvent.Action.CHANGE_PAGE) {
+            return new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.CHANGE_PAGE, ((ClickEvent.Simple<Integer>) event).value().toString());
+        }
+        if(event.action() == ClickEvent.Action.COPY_TO_CLIPBOARD) {
+            return new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.COPY_TO_CLIPBOARD, ((ClickEvent.Simple<String>) event).value());
+        }
+        if(event.action() == ClickEvent.Action.RUN_COMMAND) {
+            return new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.RUN_COMMAND, ((ClickEvent.Simple<String>) event).value());
+        }
+        if(event.action() == ClickEvent.Action.SUGGEST_COMMAND) {
+            return new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.SUGGEST_COMMAND, ((ClickEvent.Simple<String>) event).value());
+        }
+
+        throw new IllegalArgumentException("Don't know how to convert ClickEvent of type " + event.action() + " to a Minecraft Click event!");
     }
 
     /**
@@ -138,10 +146,28 @@ public class ConversionUtil {
      */
     public static ClickEvent toClickEvent(net.minecraft.network.chat.ClickEvent event) {
 
-        return new ClickEvent(
-                ClickEvent.Action.byId(event.getAction().getSerializedName()),
-                event.getValue()
-        );
+        switch (event.getAction()) {
+            case OPEN_URL: {
+                return ClickEvent.create(ClickEvent.Action.OPEN_URL, URI.create(event.getValue()));
+            }
+            case OPEN_FILE: {
+                return ClickEvent.create(ClickEvent.Action.OPEN_FILE, event.getValue());
+            }
+            case CHANGE_PAGE: {
+                return ClickEvent.create(ClickEvent.Action.CHANGE_PAGE, Integer.parseInt(event.getValue()));
+            }
+            case COPY_TO_CLIPBOARD: {
+                return ClickEvent.create(ClickEvent.Action.COPY_TO_CLIPBOARD, event.getValue());
+            }
+            case RUN_COMMAND: {
+                return ClickEvent.create(ClickEvent.Action.RUN_COMMAND, event.getValue());
+            }
+            case SUGGEST_COMMAND: {
+                return ClickEvent.create(ClickEvent.Action.SUGGEST_COMMAND, event.getValue());
+            }
+        }
+
+        throw new IllegalStateException("Don't know how to turn Minecraft click event of type " + event.getAction().getSerializedName() + " to a MidnightCore click event!");
     }
 
     public static Component toComponent(net.minecraft.network.chat.Component other) {
@@ -230,13 +256,13 @@ public class ConversionUtil {
         else if(contents instanceof KeybindContents mc) {
             return new Content.Keybind(mc.getName());
         }
-        else if(contents instanceof ScoreContents mc) {
-            return new Content.Score(mc.name().right().orElse(mc.name().left().orElseThrow().pattern()), mc.objective(), null);
+        else if(contents instanceof ScoreContents(Either<SelectorPattern, String> name, String objective)) {
+            return new Content.Score(name.right().orElse(name.left().orElseThrow().pattern()), objective, null);
         }
-        else if(contents instanceof SelectorContents mc) {
+        else if(contents instanceof SelectorContents(SelectorPattern selector, Optional<net.minecraft.network.chat.Component> separator)) {
             return new Content.Selector(
-                    mc.selector().pattern(),
-                    mc.separator().map(ConversionUtil::toComponent).orElse(null));
+                    selector.pattern(),
+                    separator.map(ConversionUtil::toComponent).orElse(null));
         }
         else if(contents instanceof NbtContents mc) {
             String pattern;
