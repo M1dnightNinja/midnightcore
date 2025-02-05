@@ -118,16 +118,20 @@ public class FabricInventoryGUI extends SingleInventoryGUI {
         Menu(int id, ServerPlayer spl) {
             super(getMenuType(FabricInventoryGUI.this.size / 9), id);
 
+
             this.player = new WrappedPlayer(spl);
             this.ctx = context.copy().withValue(spl);
 
             Container container = new SimpleContainer(FabricInventoryGUI.this.size);
-            for(int i = 0 ; i < FabricInventoryGUI.this.size ; i++) {
-                int row = i / 9;
-                int col = i % 9;
-                addSlot(new Slot(container, i, row, col));
+            int rows = FabricInventoryGUI.this.size / 9;
+
+            for(int row = 0; row < rows; row++) {
+                for(int col = 0; col < 9; col++) {
+                    addSlot(new Slot(container, col + row * 9, 8 + col * 18, 18 + row * 18));
+                }
             }
 
+            this.addStandardInventorySlots(spl.getInventory(), 8, 18 + rows * 2 + 13);
             update();
         }
 

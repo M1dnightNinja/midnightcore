@@ -51,6 +51,13 @@ public class TestCommand {
                                 return 1;
                             })
                     )
+                    .then(Commands.literal("give")
+                            .executes(ctx -> {
+                                Player pl = ctx.getSource().getPlayerOrException();
+                                TestUtil.giveGuiCmd(pl);
+                                return 1;
+                            })
+                    )
             )
             .then(Commands.literal("scoreboard")
                     .executes(ctx -> {

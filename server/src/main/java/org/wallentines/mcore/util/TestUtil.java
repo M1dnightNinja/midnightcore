@@ -184,6 +184,23 @@ public class TestUtil {
         }
     }
 
+    public static void giveGuiCmd(Player pl) {
+
+        try {
+
+            GameVersion version = pl.getServer().getVersion();
+            InventoryGUI gui = InventoryGUI.create(Component.text("Hello"), 3);
+
+            gui.setItem(0, ItemStack.Builder.of(version, new Identifier("minecraft", "diamond_block")).withName(Component.text("Free diamonds").withColor(TextColor.AQUA)).build(), (cpl, cl) -> {
+                cpl.giveItem(ItemStack.Builder.of(version, new Identifier("minecraft", "diamond")).build());
+            });
+
+            gui.open(pl);
+        } catch (Throwable th) {
+            MidnightCoreAPI.LOGGER.warn("An error occurred during a test command!", th);
+        }
+    }
+
     public static void scoreboardCmd(Player pl) {
         try {
 

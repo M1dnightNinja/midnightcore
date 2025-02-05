@@ -54,8 +54,12 @@ public class TestCommandExecutor extends BukkitCommand {
                 case "load" -> TestUtil.loadCmd(player);
             }
         } else if(args.length == 2) {
-            if(args[0].equals("gui") && args[1].equals("paged")) {
-                TestUtil.pagedGuiCmd(player);
+            if(args[0].equals("gui")) {
+                if (args[1].equals("paged")) {
+                    TestUtil.pagedGuiCmd(player);
+                } else if(args[1].equals("give")) {
+                    TestUtil.giveGuiCmd(player);
+                }
             }
         }
     }
